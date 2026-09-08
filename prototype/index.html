@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>タスク管理アプリ(モック)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1>タスク管理アプリ</h1>
+</header>
+
+<main class="board" id="board">
+  <section class="column" data-status="未着手">
+    <h2 class="column__title">未着手</h2>
+    <div class="sort-toolbar">
+      <span class="sort-toolbar__label">並び替え:</span>
+      <button type="button" class="sort-btn" data-status="未着手" data-sort-key="priority">優先度順</button>
+      <button type="button" class="sort-btn" data-status="未着手" data-sort-key="dueDate">期限順</button>
+    </div>
+    <div class="card-list" id="card-list-未着手"></div>
+    <button type="button" class="add-task-btn" data-status="未着手">+ タスクを追加</button>
+  </section>
+
+  <section class="column" data-status="作業中">
+    <h2 class="column__title">作業中</h2>
+    <div class="sort-toolbar">
+      <span class="sort-toolbar__label">並び替え:</span>
+      <button type="button" class="sort-btn" data-status="作業中" data-sort-key="priority">優先度順</button>
+      <button type="button" class="sort-btn" data-status="作業中" data-sort-key="dueDate">期限順</button>
+    </div>
+    <div class="card-list" id="card-list-作業中"></div>
+    <button type="button" class="add-task-btn" data-status="作業中">+ タスクを追加</button>
+  </section>
+
+  <section class="column" data-status="完了">
+    <h2 class="column__title">完了</h2>
+    <div class="sort-toolbar">
+      <span class="sort-toolbar__label">並び替え:</span>
+      <button type="button" class="sort-btn" data-status="完了" data-sort-key="priority">優先度順</button>
+      <button type="button" class="sort-btn" data-status="完了" data-sort-key="dueDate">期限順</button>
+    </div>
+    <div class="card-list" id="card-list-完了"></div>
+    <button type="button" class="add-task-btn" data-status="完了">+ タスクを追加</button>
+  </section>
+</main>
+
+<div class="modal-overlay" id="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h2 class="modal__title" id="modal-title">タスクを追加</h2>
+
+    <form id="task-form">
+      <div class="form-row">
+        <label for="task-title">タイトル <span class="required">必須</span></label>
+        <input type="text" id="task-title" name="title" placeholder="タスクのタイトルを入力">
+        <p class="form-error" id="title-error" hidden>タイトルを入力してください</p>
+      </div>
+
+      <div class="form-row">
+        <label for="task-description">説明文</label>
+        <textarea id="task-description" name="description" rows="4" placeholder="詳細な説明(任意)"></textarea>
+      </div>
+
+      <div class="form-row">
+        <label for="task-priority">優先度 <span class="required">必須</span></label>
+        <select id="task-priority" name="priority">
+          <option value="高">高</option>
+          <option value="中" selected>中</option>
+          <option value="低">低</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label for="task-due-date">期限</label>
+        <input type="date" id="task-due-date" name="dueDate">
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" id="delete-btn" class="btn btn--danger" hidden>削除</button>
+        <div class="modal__footer-right">
+          <button type="button" id="cancel-btn" class="btn btn--secondary">キャンセル</button>
+          <button type="submit" id="submit-btn" class="btn btn--primary">登録</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
