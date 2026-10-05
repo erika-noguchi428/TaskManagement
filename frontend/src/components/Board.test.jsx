@@ -1,11 +1,12 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchTasks } from '../api/tasks'
+import { createTask, fetchTasks } from '../api/tasks'
 import { Board } from './Board'
 
 vi.mock('../api/tasks', () => ({
   fetchTasks: vi.fn(),
+  createTask: vi.fn(),
 }))
 
 const tasks = [
@@ -45,5 +46,22 @@ describe('Board', () => {
         expect.objectContaining({ status: '作業中' }),
       ),
     )
+  })
+
+  it('opens the add modal from the not-started column, then refetches after saving', async () => {
+    createTask.mockResolvedValue({ id: 4 })
+    const user = userEvent.setup()
+    render(<Board />)
+
+    await screen.findByText('未着手タスク')
+    expect(screen.getAllByRole('button', { name: '+ タスクを追加' })).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: '+ タスクを追加' }))
+    fetchTasks.mockClear()
+    await user.type(screen.getByLabelText(/タイトル/), '追加するタスク')
+    await user.click(screen.getByRole('button', { name: '登録' }))
+
+    await waitFor(() => expect(fetchTasks).toHaveBeenCalled())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
