@@ -2,11 +2,13 @@ package com.taskmanagement.backend.controller;
 
 import com.taskmanagement.backend.dto.TaskCreateRequest;
 import com.taskmanagement.backend.dto.TaskResponse;
+import com.taskmanagement.backend.dto.TaskUpdateRequest;
 import com.taskmanagement.backend.service.TaskService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -38,6 +40,11 @@ public class TaskController {
     @GetMapping("/{id}")
     public TaskResponse getTask(@PathVariable Long id) {
         return taskService.getById(id);
+    }
+
+    @PutMapping("/{id}")
+    public TaskResponse updateTask(@PathVariable Long id, @RequestBody TaskUpdateRequest request) {
+        return taskService.update(id, request);
     }
 
     @PostMapping

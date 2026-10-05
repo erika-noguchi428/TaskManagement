@@ -2,6 +2,7 @@ package com.taskmanagement.backend.controller;
 
 import com.taskmanagement.backend.dto.TaskCreateRequest;
 import com.taskmanagement.backend.dto.TaskResponse;
+import com.taskmanagement.backend.dto.TaskUpdateRequest;
 import com.taskmanagement.backend.exception.InvalidRequestException;
 import com.taskmanagement.backend.exception.TaskNotFoundException;
 import com.taskmanagement.backend.service.TaskService;
@@ -22,6 +23,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -118,6 +120,39 @@ class TaskControllerTest {
         mockMvc.perform(post("/api/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"x\",\"priority\":\"高\",\"dueDate\":\"not-a-date\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateTaskReturns200WithUpdatedTask() throws Exception {
+        when(taskService.update(eq(1L), any(TaskUpdateRequest.class))).thenReturn(sampleTask());
+
+        mockMvc.perform(put("/api/tasks/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"サンプルタスク\",\"priority\":\"高\",\"status\":\"作業中\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void updateTaskReturns404ForUnknownId() throws Exception {
+        when(taskService.update(eq(99L), any(TaskUpdateRequest.class)))
+                .thenThrow(new TaskNotFoundException(99L));
+
+        mockMvc.perform(put("/api/tasks/99")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"x\",\"priority\":\"高\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void updateTaskReturns400WhenServiceRejectsRequest() throws Exception {
+        when(taskService.update(eq(1L), any(TaskUpdateRequest.class)))
+                .thenThrow(new InvalidRequestException("title is required"));
+
+        mockMvc.perform(put("/api/tasks/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priority\":\"高\"}"))
                 .andExpect(status().isBadRequest());
     }
 }

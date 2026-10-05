@@ -28,6 +28,7 @@ export function Board() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
 
   const debouncedKeyword = useDebouncedValue(keyword, KEYWORD_DEBOUNCE_MS)
@@ -88,6 +89,7 @@ export function Board() {
               key={statusLabel}
               title={statusLabel}
               tasks={orderForColumn(grouped[statusLabel], sort)}
+              onTaskClick={setEditingTask}
               onAddClick={statusLabel === '未着手' ? () => setShowForm(true) : undefined}
             />
           ))}
@@ -99,6 +101,18 @@ export function Board() {
           onClose={() => setShowForm(false)}
           onCreated={() => {
             setShowForm(false)
+            setReloadKey((key) => key + 1)
+          }}
+        />
+      )}
+
+      {editingTask && (
+        <TaskFormModal
+          key={editingTask.id}
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onUpdated={() => {
+            setEditingTask(null)
             setReloadKey((key) => key + 1)
           }}
         />

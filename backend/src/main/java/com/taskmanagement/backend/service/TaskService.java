@@ -2,6 +2,7 @@ package com.taskmanagement.backend.service;
 
 import com.taskmanagement.backend.dto.TaskCreateRequest;
 import com.taskmanagement.backend.dto.TaskResponse;
+import com.taskmanagement.backend.dto.TaskUpdateRequest;
 import com.taskmanagement.backend.entity.Priority;
 import com.taskmanagement.backend.entity.Status;
 import com.taskmanagement.backend.entity.Task;
@@ -60,23 +61,54 @@ public class TaskService {
 
     @Transactional
     public TaskResponse create(TaskCreateRequest request) {
-        if (request == null || request.title() == null || request.title().isBlank()) {
+        if (request == null) {
             throw new InvalidRequestException("title is required");
         }
-        String title = request.title().strip();
-        if (title.length() > MAX_TITLE_LENGTH) {
-            throw new InvalidRequestException("title must be at most " + MAX_TITLE_LENGTH + " characters");
-        }
-        if (request.priority() == null || request.priority().isBlank()) {
-            throw new InvalidRequestException("priority is required. Allowed values: 高, 中, 低");
-        }
-        Priority priority = parsePriority(request.priority());
+        String title = validateTitle(request.title());
+        Priority priority = validatePriority(request.priority());
 
         // 新規タスクは「未着手」列の末尾に追加する。IDはDB(IDENTITY)が自動採番する。
         int sortOrder = taskRepository.findMaxSortOrderByStatus(Status.NOT_STARTED) + 1;
         Task saved = taskRepository.save(
                 Task.create(title, request.description(), priority, request.dueDate(), sortOrder));
         return TaskResponse.from(saved);
+    }
+
+    @Transactional
+    public TaskResponse update(Long id, TaskUpdateRequest request) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new TaskNotFoundException(id));
+        if (request == null) {
+            throw new InvalidRequestException("title is required");
+        }
+        String title = validateTitle(request.title());
+        Priority priority = validatePriority(request.priority());
+        Status newStatus = parseStatus(request.status());
+
+        task.update(title, request.description(), priority, request.dueDate());
+        if (newStatus != null && newStatus != task.getStatus()) {
+            // 別の列へ移動した場合は、移動先の列の末尾に配置する。
+            task.moveTo(newStatus, taskRepository.findMaxSortOrderByStatus(newStatus) + 1);
+        }
+        return TaskResponse.from(taskRepository.save(task));
+    }
+
+    private String validateTitle(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new InvalidRequestException("title is required");
+        }
+        String title = raw.strip();
+        if (title.length() > MAX_TITLE_LENGTH) {
+            throw new InvalidRequestException("title must be at most " + MAX_TITLE_LENGTH + " characters");
+        }
+        return title;
+    }
+
+    private Priority validatePriority(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new InvalidRequestException("priority is required. Allowed values: 高, 中, 低");
+        }
+        return parsePriority(raw);
     }
 
     private Status parseStatus(String raw) {

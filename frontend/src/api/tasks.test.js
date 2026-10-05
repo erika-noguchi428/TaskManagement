@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { apiClient } from './client'
-import { createTask, fetchTasks } from './tasks'
+import { createTask, fetchTasks, updateTask } from './tasks'
 
 vi.mock('./client', () => ({
-  apiClient: { get: vi.fn(), post: vi.fn() },
+  apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn() },
 }))
 
 describe('fetchTasks', () => {
@@ -56,5 +56,28 @@ describe('createTask', () => {
       description: '説明',
       dueDate: '2026-12-01',
     })
+  })
+})
+
+describe('updateTask', () => {
+  it('puts all fields to the task URL, sending null for cleared optional fields', async () => {
+    apiClient.put.mockResolvedValue({ data: { id: 3 } })
+
+    const result = await updateTask(3, {
+      title: '更新',
+      description: '',
+      priority: '高',
+      dueDate: '',
+      status: '作業中',
+    })
+
+    expect(apiClient.put).toHaveBeenCalledWith('/api/tasks/3', {
+      title: '更新',
+      description: null,
+      priority: '高',
+      dueDate: null,
+      status: '作業中',
+    })
+    expect(result).toEqual({ id: 3 })
   })
 })

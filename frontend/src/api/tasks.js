@@ -19,3 +19,16 @@ export async function createTask({ title, description, priority, dueDate }) {
   const response = await apiClient.post('/api/tasks', body)
   return response.data
 }
+
+export async function updateTask(id, { title, description, priority, dueDate, status }) {
+  const body = {
+    title,
+    description: description || null,
+    priority,
+    dueDate: dueDate || null,
+    status,
+  }
+
+  const response = await apiClient.put(`/api/tasks/${id}`, body)
+  return response.data
+}
