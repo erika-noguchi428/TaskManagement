@@ -48,6 +48,21 @@ public class Task {
     protected Task() {
     }
 
+    public static Task create(String title, String description, Priority priority,
+                              LocalDate dueDate, int sortOrder) {
+        Task task = new Task();
+        task.title = title;
+        task.description = description;
+        task.priority = priority;
+        task.dueDate = dueDate;
+        task.status = Status.NOT_STARTED;
+        task.sortOrder = sortOrder;
+        LocalDateTime now = LocalDateTime.now();
+        task.createdAt = now;
+        task.updatedAt = now;
+        return task;
+    }
+
     public Long getId() {
         return id;
     }

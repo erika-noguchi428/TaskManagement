@@ -1,11 +1,13 @@
 package com.taskmanagement.backend.controller;
 
+import com.taskmanagement.backend.dto.TaskCreateRequest;
 import com.taskmanagement.backend.dto.TaskResponse;
 import com.taskmanagement.backend.exception.InvalidRequestException;
 import com.taskmanagement.backend.exception.TaskNotFoundException;
 import com.taskmanagement.backend.service.TaskService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -19,6 +21,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -79,6 +83,41 @@ class TaskControllerTest {
     @Test
     void getTaskByIdReturns400ForNonNumericId() throws Exception {
         mockMvc.perform(get("/api/tasks/abc"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createTaskReturns201WithLocationAndGeneratedId() throws Exception {
+        when(taskService.create(any(TaskCreateRequest.class))).thenReturn(sampleTask());
+
+        mockMvc.perform(post("/api/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"サンプルタスク","description":"説明","priority":"高","dueDate":"2026-09-30"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/tasks/1"))
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.status").value("未着手"));
+    }
+
+    @Test
+    void createTaskReturns400WhenServiceRejectsRequest() throws Exception {
+        when(taskService.create(any(TaskCreateRequest.class)))
+                .thenThrow(new InvalidRequestException("title is required"));
+
+        mockMvc.perform(post("/api/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priority\":\"高\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    void createTaskReturns400ForMalformedBody() throws Exception {
+        mockMvc.perform(post("/api/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"x\",\"priority\":\"高\",\"dueDate\":\"not-a-date\"}"))
                 .andExpect(status().isBadRequest());
     }
 }

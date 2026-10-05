@@ -102,4 +102,28 @@ class TaskRepositoryTest {
         assertThat(taskRepository.findById(id)).isPresent();
         assertThat(taskRepository.findAll(Sort.by("id"))).isNotEmpty();
     }
+
+    @Test
+    void assignsIncrementingIdsOnSave() {
+        Task first = taskRepository.saveAndFlush(
+                Task.create("1件目", null, Priority.MEDIUM, null, 1));
+        Task second = taskRepository.saveAndFlush(
+                Task.create("2件目", null, Priority.HIGH, null, 2));
+
+        assertThat(first.getId()).isNotNull();
+        assertThat(second.getId()).isGreaterThan(first.getId());
+        assertThat(first.getStatus()).isEqualTo(Status.NOT_STARTED);
+    }
+
+    @Test
+    void findsMaxSortOrderPerStatusOrZeroWhenEmpty() {
+        assertThat(taskRepository.findMaxSortOrderByStatus(Status.NOT_STARTED)).isZero();
+
+        insertTask("未着手A", null, "中", null, "未着手");
+        jdbcTemplate.update("UPDATE tasks SET sort_order = 5 WHERE title = '未着手A'");
+        insertTask("完了A", null, "中", null, "完了");
+        jdbcTemplate.update("UPDATE tasks SET sort_order = 9 WHERE title = '完了A'");
+
+        assertThat(taskRepository.findMaxSortOrderByStatus(Status.NOT_STARTED)).isEqualTo(5);
+    }
 }
