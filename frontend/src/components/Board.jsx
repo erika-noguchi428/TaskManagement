@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchTasks } from '../api/tasks'
 import { groupByStatus, orderForColumn, STATUSES } from '../utils/groupByStatus'
 import { Column } from './Column'
+import { TaskFormModal } from './TaskFormModal'
 import { FilterBar } from './FilterBar'
 
 const KEYWORD_DEBOUNCE_MS = 300
@@ -26,6 +27,8 @@ export function Board() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showForm, setShowForm] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   const debouncedKeyword = useDebouncedValue(keyword, KEYWORD_DEBOUNCE_MS)
 
@@ -51,7 +54,7 @@ export function Board() {
     return () => {
       isCurrent = false
     }
-  }, [debouncedKeyword, status, priority, sort])
+  }, [debouncedKeyword, status, priority, sort, reloadKey])
 
   const grouped = groupByStatus(tasks)
 
@@ -85,9 +88,20 @@ export function Board() {
               key={statusLabel}
               title={statusLabel}
               tasks={orderForColumn(grouped[statusLabel], sort)}
+              onAddClick={statusLabel === '未着手' ? () => setShowForm(true) : undefined}
             />
           ))}
         </div>
+      )}
+
+      {showForm && (
+        <TaskFormModal
+          onClose={() => setShowForm(false)}
+          onCreated={() => {
+            setShowForm(false)
+            setReloadKey((key) => key + 1)
+          }}
+        />
       )}
     </div>
   )

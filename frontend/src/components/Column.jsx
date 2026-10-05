@@ -1,6 +1,6 @@
 import { TaskCard } from './TaskCard'
 
-export function Column({ title, tasks }) {
+export function Column({ title, tasks, onAddClick }) {
   return (
     <div className="flex-1 bg-gray-50 rounded-lg p-3 min-w-64">
       <h2 className="font-semibold text-gray-800 mb-3">{title}</h2>
@@ -11,6 +11,15 @@ export function Column({ title, tasks }) {
           tasks.map((task) => <TaskCard key={task.id} task={task} />)
         )}
       </div>
+      {onAddClick && (
+        <button
+          type="button"
+          onClick={onAddClick}
+          className="mt-3 w-full text-left text-sm text-gray-600 hover:bg-gray-200 rounded px-2 py-1.5"
+        >
+          + タスクを追加
+        </button>
+      )}
     </div>
   )
 }
