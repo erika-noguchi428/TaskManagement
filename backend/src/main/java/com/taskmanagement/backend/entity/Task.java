@@ -63,6 +63,20 @@ public class Task {
         return task;
     }
 
+    public void update(String title, String description, Priority priority, LocalDate dueDate) {
+        this.title = title;
+        this.description = description;
+        this.priority = priority;
+        this.dueDate = dueDate;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void moveTo(Status status, int sortOrder) {
+        this.status = status;
+        this.sortOrder = sortOrder;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public Long getId() {
         return id;
     }

@@ -1,9 +1,26 @@
 import { getDueDateClass } from '../utils/dueDate'
 import { PRIORITY_CLASSES } from '../utils/priority'
 
-export function TaskCard({ task }) {
+export function TaskCard({ task, onClick }) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3 space-y-2">
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick()
+              }
+            }
+          : undefined
+      }
+      className={`bg-white rounded-lg border border-gray-200 shadow-sm p-3 space-y-2 ${
+        onClick ? 'cursor-pointer hover:border-blue-300' : ''
+      }`}
+    >
       <p className="font-medium text-gray-900">{task.title}</p>
       <div className="flex items-center justify-between">
         <span

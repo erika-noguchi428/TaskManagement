@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { COLUMN_SORTS, sortTasks } from '../utils/sortTasks'
 import { TaskCard } from './TaskCard'
 
-export function Column({ title, tasks, onAddClick }) {
+export function Column({ title, tasks, onAddClick, onTaskClick }) {
   // 並び替えはこの列だけに適用する。選択中のボタンを再度押すと解除して元の並びに戻る。
   const [columnSort, setColumnSort] = useState(null)
   const displayedTasks = sortTasks(tasks, columnSort)
@@ -31,7 +31,13 @@ export function Column({ title, tasks, onAddClick }) {
         {displayedTasks.length === 0 ? (
           <p className="text-sm text-gray-400">タスクがありません</p>
         ) : (
-          displayedTasks.map((task) => <TaskCard key={task.id} task={task} />)
+          displayedTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              onClick={onTaskClick ? () => onTaskClick(task) : undefined}
+            />
+          ))
         )}
       </div>
       {onAddClick && (

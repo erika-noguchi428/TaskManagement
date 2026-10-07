@@ -1,20 +1,65 @@
-import { useState } from 'react'
-import { createTask } from '../api/tasks'
+import { useEffect, useState } from 'react'
+import { createTask, updateTask } from '../api/tasks'
+import { STATUSES } from '../utils/groupByStatus'
 import { PRIORITY_OPTIONS } from '../utils/priority'
 
 const DEFAULT_PRIORITY = '中'
 
-export function TaskFormModal({ onClose, onCreated }) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [priority, setPriority] = useState(DEFAULT_PRIORITY)
-  const [dueDate, setDueDate] = useState('')
+// taskを渡すと編集モード。閉じるときに変更があれば保存する。
+export function TaskFormModal({ task, onClose, onCreated, onUpdated }) {
+  const isEdit = Boolean(task)
+  const [title, setTitle] = useState(task?.title ?? '')
+  const [description, setDescription] = useState(task?.description ?? '')
+  const [priority, setPriority] = useState(task?.priority ?? DEFAULT_PRIORITY)
+  const [dueDate, setDueDate] = useState(task?.dueDate ?? '')
+  const [status, setStatus] = useState(task?.status ?? '未着手')
   const [titleError, setTitleError] = useState(null)
   const [submitError, setSubmitError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
+  async function handleCloseWithSave() {
+    if (submitting) return
+    const unchanged =
+      title === task.title &&
+      description === (task.description ?? '') &&
+      priority === task.priority &&
+      dueDate === (task.dueDate ?? '') &&
+      status === task.status
+    if (unchanged) {
+      onClose()
+      return
+    }
+    if (!title.trim()) {
+      setTitleError('タイトルを入力してください')
+      return
+    }
+    setTitleError(null)
+    setSubmitError(null)
+    setSubmitting(true)
+    try {
+      await updateTask(task.id, { title: title.trim(), description, priority, dueDate, status })
+      onUpdated()
+    } catch (err) {
+      setSubmitError(err.response?.data?.message ?? err.message)
+      setSubmitting(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isEdit) return undefined
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') handleCloseWithSave()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  })
+
   async function handleSubmit(e) {
     e.preventDefault()
+    if (isEdit) {
+      handleCloseWithSave()
+      return
+    }
     if (!title.trim()) {
       setTitleError('タイトルを入力してください')
       return
@@ -32,7 +77,10 @@ export function TaskFormModal({ onClose, onCreated }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-10">
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-10"
+      onMouseDown={isEdit ? (e) => e.target === e.currentTarget && handleCloseWithSave() : undefined}
+    >
       <form
         role="dialog"
         aria-modal="true"
@@ -42,7 +90,7 @@ export function TaskFormModal({ onClose, onCreated }) {
         className="bg-white rounded-lg shadow-lg w-full max-w-md p-5 space-y-4"
       >
         <h2 id="task-form-title" className="text-lg font-semibold text-gray-900">
-          タスクを追加
+          {isEdit ? 'タスクを編集' : 'タスクを追加'}
         </h2>
 
         <div>
@@ -105,27 +153,60 @@ export function TaskFormModal({ onClose, onCreated }) {
           </div>
         </div>
 
+        {isEdit && (
+          <div>
+            <label htmlFor="task-status" className="block text-sm font-medium text-gray-700 mb-1">
+              ステータス
+            </label>
+            <select
+              id="task-status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+            >
+              {STATUSES.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {submitError && (
           <div className="bg-red-50 text-red-700 border border-red-200 rounded p-2 text-sm">
-            登録に失敗しました: {submitError}
+            {isEdit ? '更新' : '登録'}に失敗しました: {submitError}
           </div>
         )}
 
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
-          >
-            キャンセル
-          </button>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            登録
-          </button>
+          {isEdit ? (
+            <button
+              type="button"
+              onClick={handleCloseWithSave}
+              disabled={submitting}
+              className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              閉じる
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-1.5 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                キャンセル
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                登録
+              </button>
+            </>
+          )}
         </div>
       </form>
     </div>
