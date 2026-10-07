@@ -1,14 +1,39 @@
 import { useState } from 'react'
 import { COLUMN_SORTS, sortTasks } from '../utils/sortTasks'
-import { TaskCard } from './TaskCard'
+import { TASK_DRAG_TYPE, TaskCard } from './TaskCard'
 
-export function Column({ title, tasks, onAddClick, onTaskClick }) {
+export function Column({ title, tasks, onAddClick, onTaskClick, onTaskDrop }) {
+  const [isDragOver, setIsDragOver] = useState(false)
   // 並び替えはこの列だけに適用する。選択中のボタンを再度押すと解除して元の並びに戻る。
   const [columnSort, setColumnSort] = useState(null)
   const displayedTasks = sortTasks(tasks, columnSort)
 
   return (
-    <div className="flex-1 bg-gray-50 rounded-lg p-3 min-w-64">
+    <div
+      onDragOver={
+        onTaskDrop
+          ? (e) => {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+              setIsDragOver(true)
+            }
+          : undefined
+      }
+      onDragLeave={onTaskDrop ? () => setIsDragOver(false) : undefined}
+      onDrop={
+        onTaskDrop
+          ? (e) => {
+              e.preventDefault()
+              setIsDragOver(false)
+              const taskId = Number(e.dataTransfer.getData(TASK_DRAG_TYPE))
+              if (taskId) onTaskDrop(taskId, title)
+            }
+          : undefined
+      }
+      className={`flex-1 rounded-lg p-3 min-w-64 ${
+        isDragOver ? 'bg-blue-50 ring-2 ring-blue-300' : 'bg-gray-50'
+      }`}
+    >
       <h2 className="font-semibold text-gray-800 mb-2">{title}</h2>
       <div className="flex gap-1 mb-3">
         {COLUMN_SORTS.map(({ key, label }) => (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchTasks } from '../api/tasks'
+import { fetchTasks, updateTask } from '../api/tasks'
 import { groupByStatus, orderForColumn, STATUSES } from '../utils/groupByStatus'
 import { Column } from './Column'
 import { TaskFormModal } from './TaskFormModal'
@@ -27,6 +27,7 @@ export function Board() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [moveError, setMoveError] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -57,6 +58,23 @@ export function Board() {
     }
   }, [debouncedKeyword, status, priority, sort, reloadKey])
 
+  // ドロップ先の列のステータスへ変更する。先に画面を更新し、失敗したら再取得して元に戻す。
+  const handleTaskDrop = async (taskId, newStatus) => {
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task || task.status === newStatus) return
+
+    setTasks((current) =>
+      current.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)),
+    )
+    setMoveError(null)
+    try {
+      await updateTask(taskId, { ...task, status: newStatus })
+    } catch (err) {
+      setMoveError(err.response?.data?.message ?? err.message)
+      setReloadKey((key) => key + 1)
+    }
+  }
+
   const grouped = groupByStatus(tasks)
 
   return (
@@ -74,9 +92,9 @@ export function Board() {
         onSortChange={setSort}
       />
 
-      {error && (
+      {(error || moveError) && (
         <div className="bg-red-50 text-red-700 border border-red-200 rounded p-3 mb-4">
-          エラーが発生しました: {error}
+          エラーが発生しました: {error ?? moveError}
         </div>
       )}
 
@@ -90,6 +108,7 @@ export function Board() {
               title={statusLabel}
               tasks={orderForColumn(grouped[statusLabel], sort)}
               onTaskClick={setEditingTask}
+              onTaskDrop={handleTaskDrop}
               onAddClick={statusLabel === '未着手' ? () => setShowForm(true) : undefined}
             />
           ))}
