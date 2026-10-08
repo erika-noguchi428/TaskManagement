@@ -2,8 +2,19 @@ import { useState } from 'react'
 import { COLUMN_SORTS, sortTasks } from '../utils/sortTasks'
 import { TASK_DRAG_TYPE, TaskCard } from './TaskCard'
 
+// カーソル位置から挿入位置(0〜件数。ドラッグ中のカードを含む並びでの隙間の番号)を求める。
+// カードの上半分なら手前、下半分なら次の隙間。カード以外(余白など)なら末尾。
+function getInsertIndex(e, count) {
+  const card = e.target.closest?.('[data-task-index]')
+  if (!card) return count
+  const index = Number(card.dataset.taskIndex)
+  const rect = card.getBoundingClientRect()
+  return e.clientY < rect.top + rect.height / 2 ? index : index + 1
+}
+
 export function Column({ title, tasks, onAddClick, onTaskClick, onTaskDrop, reorderable = true }) {
   const [isDragOver, setIsDragOver] = useState(false)
+  const [insertIndex, setInsertIndex] = useState(null)
   // 並び替えはこの列だけに適用する。選択中のボタンを再度押すと解除して元の並びに戻る。
   const [columnSort, setColumnSort] = useState(null)
   const displayedTasks = sortTasks(tasks, columnSort)
@@ -18,20 +29,35 @@ export function Column({ title, tasks, onAddClick, onTaskClick, onTaskDrop, reor
               e.preventDefault()
               e.dataTransfer.dropEffect = 'move'
               setIsDragOver(true)
+              setInsertIndex(canReorder ? getInsertIndex(e, tasks.length) : null)
             }
           : undefined
       }
-      onDragLeave={onTaskDrop ? () => setIsDragOver(false) : undefined}
+      onDragLeave={
+        onTaskDrop
+          ? () => {
+              setIsDragOver(false)
+              setInsertIndex(null)
+            }
+          : undefined
+      }
       onDrop={
         onTaskDrop
           ? (e) => {
               e.preventDefault()
               setIsDragOver(false)
+              setInsertIndex(null)
               const taskId = Number(e.dataTransfer.getData(TASK_DRAG_TYPE))
               if (!taskId) return
-              // 位置指定できない状態で自分の列に戻した場合は何もしない。
-              if (!canReorder && tasks.some((t) => t.id === taskId)) return
-              onTaskDrop(taskId, title)
+              if (!canReorder) {
+                // 位置指定できない状態で自分の列に戻した場合は何もしない。
+                if (!tasks.some((t) => t.id === taskId)) onTaskDrop(taskId, title)
+                return
+              }
+              // 線の位置(隙間の番号)を、ドラッグ中のカードを除いた並びでの位置に直す。
+              const gap = getInsertIndex(e, tasks.length)
+              const draggedIndex = tasks.findIndex((t) => t.id === taskId)
+              onTaskDrop(taskId, title, draggedIndex !== -1 && draggedIndex < gap ? gap - 1 : gap)
             }
           : undefined
       }
@@ -61,28 +87,16 @@ export function Column({ title, tasks, onAddClick, onTaskClick, onTaskDrop, reor
         {displayedTasks.length === 0 ? (
           <p className="text-sm text-gray-400">タスクがありません</p>
         ) : (
-          displayedTasks.map((task) => (
-            <div
-              key={task.id}
-              onDrop={
-                onTaskDrop && canReorder
-                  ? (e) => {
-                      // カードの上にドロップした場合は、そのカードの手前に挿入する。
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setIsDragOver(false)
-                      const taskId = Number(e.dataTransfer.getData(TASK_DRAG_TYPE))
-                      if (!taskId || taskId === task.id) return
-                      const others = tasks.filter((t) => t.id !== taskId)
-                      onTaskDrop(taskId, title, others.findIndex((t) => t.id === task.id))
-                    }
-                  : undefined
-              }
-            >
+          displayedTasks.map((task, index) => (
+            <div key={task.id} data-task-index={index} className="relative">
+              {insertIndex === index && <DropIndicator position="top" />}
               <TaskCard
                 task={task}
                 onClick={onTaskClick ? () => onTaskClick(task) : undefined}
               />
+              {insertIndex === displayedTasks.length && index === displayedTasks.length - 1 && (
+                <DropIndicator position="bottom" />
+              )}
             </div>
           ))
         )}
@@ -97,5 +111,17 @@ export function Column({ title, tasks, onAddClick, onTaskClick, onTaskDrop, reor
         </button>
       )}
     </div>
+  )
+}
+
+// 挿入位置を示す線。レイアウトがずれてドラッグ判定が揺れないよう、絶対配置で重ねる。
+function DropIndicator({ position }) {
+  return (
+    <div
+      data-testid="drop-indicator"
+      className={`absolute left-0 right-0 h-0.5 bg-blue-500 rounded pointer-events-none ${
+        position === 'top' ? '-top-1.5' : '-bottom-1.5'
+      }`}
+    />
   )
 }
