@@ -1,6 +1,7 @@
 package com.taskmanagement.backend.service;
 
 import com.taskmanagement.backend.dto.TaskCreateRequest;
+import com.taskmanagement.backend.dto.TaskMoveRequest;
 import com.taskmanagement.backend.dto.TaskResponse;
 import com.taskmanagement.backend.dto.TaskUpdateRequest;
 import com.taskmanagement.backend.entity.Priority;
@@ -15,8 +16,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -127,5 +130,78 @@ class TaskServiceTest {
         assertThatThrownBy(() -> taskService.update(1L, new TaskUpdateRequest("t", null, "中", null, "不明")))
                 .isInstanceOf(InvalidRequestException.class);
         verify(taskRepository, never()).save(any());
+    }
+
+    private Task taskWithId(long id, String title, Status status, int sortOrder) {
+        Task task = Task.create(title, null, Priority.MEDIUM, null, sortOrder);
+        ReflectionTestUtils.setField(task, "id", id);
+        if (status != Status.NOT_STARTED) {
+            task.moveTo(status, sortOrder);
+        }
+        return task;
+    }
+
+    @Test
+    void moveReordersWithinSameColumnWithoutChangingContent() {
+        Task a = taskWithId(1, "A", Status.NOT_STARTED, 1);
+        Task b = taskWithId(2, "B", Status.NOT_STARTED, 2);
+        Task c = taskWithId(3, "C", Status.NOT_STARTED, 3);
+        when(taskRepository.findById(3L)).thenReturn(Optional.of(c));
+        when(taskRepository.findByStatusOrderBySortOrderAscIdAsc(Status.NOT_STARTED))
+                .thenReturn(List.of(a, b, c));
+
+        TaskResponse response = taskService.move(3L, new TaskMoveRequest(null, 0));
+
+        assertThat(response.sortOrder()).isEqualTo(1);
+        assertThat(response.title()).isEqualTo("C");
+        assertThat(a.getSortOrder()).isEqualTo(2);
+        assertThat(b.getSortOrder()).isEqualTo(3);
+        assertThat(c.getStatus()).isEqualTo(Status.NOT_STARTED);
+        verify(taskRepository).saveAll(any());
+    }
+
+    @Test
+    void moveToAnotherColumnInsertsAtPosition() {
+        Task a = taskWithId(1, "A", Status.NOT_STARTED, 1);
+        Task x = taskWithId(10, "X", Status.IN_PROGRESS, 1);
+        Task y = taskWithId(11, "Y", Status.IN_PROGRESS, 2);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(a));
+        when(taskRepository.findByStatusOrderBySortOrderAscIdAsc(Status.IN_PROGRESS))
+                .thenReturn(List.of(x, y));
+
+        TaskResponse response = taskService.move(1L, new TaskMoveRequest("作業中", 1));
+
+        assertThat(response.status()).isEqualTo("作業中");
+        assertThat(response.sortOrder()).isEqualTo(2);
+        assertThat(x.getSortOrder()).isEqualTo(1);
+        assertThat(y.getSortOrder()).isEqualTo(3);
+    }
+
+    @Test
+    void moveWithoutPositionAppendsToEnd() {
+        Task a = taskWithId(1, "A", Status.NOT_STARTED, 1);
+        Task b = taskWithId(2, "B", Status.NOT_STARTED, 2);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(a));
+        when(taskRepository.findByStatusOrderBySortOrderAscIdAsc(Status.NOT_STARTED))
+                .thenReturn(List.of(a, b));
+
+        TaskResponse response = taskService.move(1L, new TaskMoveRequest(null, null));
+
+        assertThat(response.sortOrder()).isEqualTo(2);
+        assertThat(b.getSortOrder()).isEqualTo(1);
+    }
+
+    @Test
+    void moveRejectsUnknownTaskNegativePositionAndInvalidStatus() {
+        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> taskService.move(99L, new TaskMoveRequest(null, 0)))
+                .isInstanceOf(TaskNotFoundException.class);
+
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(existingTask()));
+        assertThatThrownBy(() -> taskService.move(1L, new TaskMoveRequest(null, -1)))
+                .isInstanceOf(InvalidRequestException.class);
+        assertThatThrownBy(() -> taskService.move(1L, new TaskMoveRequest("不明", 0)))
+                .isInstanceOf(InvalidRequestException.class);
+        verify(taskRepository, never()).saveAll(any());
     }
 }

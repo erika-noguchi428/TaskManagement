@@ -1,6 +1,7 @@
 package com.taskmanagement.backend.controller;
 
 import com.taskmanagement.backend.dto.TaskCreateRequest;
+import com.taskmanagement.backend.dto.TaskMoveRequest;
 import com.taskmanagement.backend.dto.TaskResponse;
 import com.taskmanagement.backend.dto.TaskUpdateRequest;
 import com.taskmanagement.backend.service.TaskService;
@@ -45,6 +46,11 @@ public class TaskController {
     @PutMapping("/{id}")
     public TaskResponse updateTask(@PathVariable Long id, @RequestBody TaskUpdateRequest request) {
         return taskService.update(id, request);
+    }
+
+    @PutMapping("/{id}/move")
+    public TaskResponse moveTask(@PathVariable Long id, @RequestBody TaskMoveRequest request) {
+        return taskService.move(id, request);
     }
 
     @PostMapping

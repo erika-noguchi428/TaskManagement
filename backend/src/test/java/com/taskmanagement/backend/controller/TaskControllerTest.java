@@ -1,6 +1,7 @@
 package com.taskmanagement.backend.controller;
 
 import com.taskmanagement.backend.dto.TaskCreateRequest;
+import com.taskmanagement.backend.dto.TaskMoveRequest;
 import com.taskmanagement.backend.dto.TaskResponse;
 import com.taskmanagement.backend.dto.TaskUpdateRequest;
 import com.taskmanagement.backend.exception.InvalidRequestException;
@@ -155,6 +156,28 @@ class TaskControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"priority\":\"高\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void moveTaskReturns200WithMovedTask() throws Exception {
+        when(taskService.move(eq(1L), any(TaskMoveRequest.class))).thenReturn(sampleTask());
+
+        mockMvc.perform(put("/api/tasks/1/move")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"作業中\",\"position\":0}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void moveTaskReturns404ForUnknownId() throws Exception {
+        when(taskService.move(eq(99L), any(TaskMoveRequest.class)))
+                .thenThrow(new TaskNotFoundException(99L));
+
+        mockMvc.perform(put("/api/tasks/99/move")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"position\":0}"))
+                .andExpect(status().isNotFound());
     }
 
     @Test
