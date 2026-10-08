@@ -1,9 +1,16 @@
 import { getDueDateClass } from '../utils/dueDate'
 import { PRIORITY_CLASSES } from '../utils/priority'
 
+export const TASK_DRAG_TYPE = 'text/plain'
+
 export function TaskCard({ task, onClick }) {
   return (
     <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData(TASK_DRAG_TYPE, String(task.id))
+        e.dataTransfer.effectAllowed = 'move'
+      }}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onClick={onClick}

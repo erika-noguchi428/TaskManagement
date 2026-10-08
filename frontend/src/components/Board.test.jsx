@@ -1,12 +1,13 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createTask, fetchTasks } from '../api/tasks'
+import { createTask, fetchTasks, updateTask } from '../api/tasks'
 import { Board } from './Board'
 
 vi.mock('../api/tasks', () => ({
   fetchTasks: vi.fn(),
   createTask: vi.fn(),
+  updateTask: vi.fn(),
 }))
 
 const tasks = [
@@ -63,5 +64,54 @@ describe('Board', () => {
 
     await waitFor(() => expect(fetchTasks).toHaveBeenCalled())
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  describe('drag and drop', () => {
+    const dragTo = (cardTitle, columnTitle) => {
+      const data = {}
+      const dataTransfer = {
+        setData: (type, value) => (data[type] = value),
+        getData: (type) => data[type],
+      }
+      const column = screen.getByRole('heading', { name: columnTitle }).parentElement
+      fireEvent.dragStart(screen.getByText(cardTitle), { dataTransfer })
+      fireEvent.dragOver(column, { dataTransfer })
+      fireEvent.drop(column, { dataTransfer })
+    }
+
+    beforeEach(() => { updateTask.mockReset() })
+
+    it('updates the status when a card is dropped on another column', async () => {
+      updateTask.mockResolvedValue({})
+      render(<Board />)
+      await screen.findByText('未着手タスク')
+
+      dragTo('未着手タスク', '作業中')
+
+      expect(updateTask).toHaveBeenCalledWith(1, expect.objectContaining({ status: '作業中' }))
+      const column = screen.getByRole('heading', { name: '作業中' }).parentElement
+      expect(column).toHaveTextContent('未着手タスク')
+    })
+
+    it('does nothing when dropped on the same column', async () => {
+      render(<Board />)
+      await screen.findByText('未着手タスク')
+
+      dragTo('未着手タスク', '未着手')
+
+      expect(updateTask).not.toHaveBeenCalled()
+    })
+
+    it('shows an error and refetches when the update fails', async () => {
+      updateTask.mockRejectedValue({ response: { data: { message: 'boom' } } })
+      render(<Board />)
+      await screen.findByText('未着手タスク')
+      fetchTasks.mockClear()
+
+      dragTo('未着手タスク', '完了')
+
+      await waitFor(() => expect(fetchTasks).toHaveBeenCalled())
+      expect(await screen.findByText(/boom/)).toBeInTheDocument()
+    })
   })
 })
