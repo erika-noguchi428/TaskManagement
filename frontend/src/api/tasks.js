@@ -33,6 +33,11 @@ export async function updateTask(id, { title, description, priority, dueDate, st
   return response.data
 }
 
+// 物理削除のため、削除したタスクは元に戻せない。
+export async function deleteTask(id) {
+  await apiClient.delete(`/api/tasks/${id}`)
+}
+
 // タスクの内容は変えず、ステータスと列内の位置(0始まり)だけを変更する。
 export async function moveTask(id, { status, position }) {
   const body = { status }

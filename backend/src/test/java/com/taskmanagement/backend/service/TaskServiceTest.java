@@ -39,6 +39,24 @@ class TaskServiceTest {
     private TaskService taskService;
 
     @Test
+    void deletePhysicallyRemovesExistingTask() {
+        Task task = Task.create("削除対象", null, Priority.MEDIUM, null, 1);
+        when(taskRepository.findById(3L)).thenReturn(Optional.of(task));
+
+        taskService.delete(3L);
+
+        verify(taskRepository).delete(task);
+    }
+
+    @Test
+    void deleteThrowsNotFoundForUnknownId() {
+        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> taskService.delete(99L)).isInstanceOf(TaskNotFoundException.class);
+        verify(taskRepository, never()).delete(any(Task.class));
+    }
+
+    @Test
     void createAppendsToEndOfNotStartedColumnWithNotStartedStatus() {
         when(taskRepository.findMaxSortOrderByStatus(Status.NOT_STARTED)).thenReturn(4);
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));

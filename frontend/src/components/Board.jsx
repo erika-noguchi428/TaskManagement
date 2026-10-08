@@ -134,6 +134,10 @@ export function Board() {
             setEditingTask(null)
             setReloadKey((key) => key + 1)
           }}
+          onDeleted={() => {
+            setEditingTask(null)
+            setReloadKey((key) => key + 1)
+          }}
         />
       )}
     </div>
