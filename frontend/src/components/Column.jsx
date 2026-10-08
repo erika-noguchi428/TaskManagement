@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { COLUMN_SORTS, sortTasks } from '../utils/sortTasks'
 import { TASK_DRAG_TYPE, TaskCard } from './TaskCard'
 
-export function Column({ title, tasks, onAddClick, onTaskClick, onTaskDrop }) {
+export function Column({ title, tasks, onAddClick, onTaskClick, onTaskDrop, reorderable = true }) {
   const [isDragOver, setIsDragOver] = useState(false)
   // 並び替えはこの列だけに適用する。選択中のボタンを再度押すと解除して元の並びに戻る。
   const [columnSort, setColumnSort] = useState(null)
   const displayedTasks = sortTasks(tasks, columnSort)
+  // 一覧の並び替え指定中・列の並び替えボタン選択中は、表示順と保存順が異なるため位置指定をしない。
+  const canReorder = reorderable && columnSort === null
 
   return (
     <div
@@ -26,7 +28,10 @@ export function Column({ title, tasks, onAddClick, onTaskClick, onTaskDrop }) {
               e.preventDefault()
               setIsDragOver(false)
               const taskId = Number(e.dataTransfer.getData(TASK_DRAG_TYPE))
-              if (taskId) onTaskDrop(taskId, title)
+              if (!taskId) return
+              // 位置指定できない状態で自分の列に戻した場合は何もしない。
+              if (!canReorder && tasks.some((t) => t.id === taskId)) return
+              onTaskDrop(taskId, title)
             }
           : undefined
       }
@@ -57,11 +62,28 @@ export function Column({ title, tasks, onAddClick, onTaskClick, onTaskDrop }) {
           <p className="text-sm text-gray-400">タスクがありません</p>
         ) : (
           displayedTasks.map((task) => (
-            <TaskCard
+            <div
               key={task.id}
-              task={task}
-              onClick={onTaskClick ? () => onTaskClick(task) : undefined}
-            />
+              onDrop={
+                onTaskDrop && canReorder
+                  ? (e) => {
+                      // カードの上にドロップした場合は、そのカードの手前に挿入する。
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setIsDragOver(false)
+                      const taskId = Number(e.dataTransfer.getData(TASK_DRAG_TYPE))
+                      if (!taskId || taskId === task.id) return
+                      const others = tasks.filter((t) => t.id !== taskId)
+                      onTaskDrop(taskId, title, others.findIndex((t) => t.id === task.id))
+                    }
+                  : undefined
+              }
+            >
+              <TaskCard
+                task={task}
+                onClick={onTaskClick ? () => onTaskClick(task) : undefined}
+              />
+            </div>
           ))
         )}
       </div>

@@ -1,12 +1,13 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createTask, fetchTasks, updateTask } from '../api/tasks'
+import { createTask, fetchTasks, moveTask } from '../api/tasks'
 import { Board } from './Board'
 
 vi.mock('../api/tasks', () => ({
   fetchTasks: vi.fn(),
   createTask: vi.fn(),
+  moveTask: vi.fn(),
   updateTask: vi.fn(),
 }))
 
@@ -67,28 +68,30 @@ describe('Board', () => {
   })
 
   describe('drag and drop', () => {
-    const dragTo = (cardTitle, columnTitle) => {
+    const dragTo = (cardTitle, columnTitle, dropOnCardTitle) => {
       const data = {}
       const dataTransfer = {
         setData: (type, value) => (data[type] = value),
         getData: (type) => data[type],
       }
-      const column = screen.getByRole('heading', { name: columnTitle }).parentElement
+      const target = dropOnCardTitle
+        ? screen.getByText(dropOnCardTitle)
+        : screen.getByRole('heading', { name: columnTitle }).parentElement
       fireEvent.dragStart(screen.getByText(cardTitle), { dataTransfer })
-      fireEvent.dragOver(column, { dataTransfer })
-      fireEvent.drop(column, { dataTransfer })
+      fireEvent.dragOver(target, { dataTransfer })
+      fireEvent.drop(target, { dataTransfer })
     }
 
-    beforeEach(() => { updateTask.mockReset() })
+    beforeEach(() => { moveTask.mockReset() })
 
     it('updates the status when a card is dropped on another column', async () => {
-      updateTask.mockResolvedValue({})
+      moveTask.mockResolvedValue({})
       render(<Board />)
       await screen.findByText('未着手タスク')
 
       dragTo('未着手タスク', '作業中')
 
-      expect(updateTask).toHaveBeenCalledWith(1, expect.objectContaining({ status: '作業中' }))
+      expect(moveTask).toHaveBeenCalledWith(1, { status: '作業中', position: undefined })
       const column = screen.getByRole('heading', { name: '作業中' }).parentElement
       expect(column).toHaveTextContent('未着手タスク')
     })
@@ -99,11 +102,11 @@ describe('Board', () => {
 
       dragTo('未着手タスク', '未着手')
 
-      expect(updateTask).not.toHaveBeenCalled()
+      expect(moveTask).not.toHaveBeenCalled()
     })
 
     it('shows an error and refetches when the update fails', async () => {
-      updateTask.mockRejectedValue({ response: { data: { message: 'boom' } } })
+      moveTask.mockRejectedValue({ response: { data: { message: 'boom' } } })
       render(<Board />)
       await screen.findByText('未着手タスク')
       fetchTasks.mockClear()
@@ -112,6 +115,57 @@ describe('Board', () => {
 
       await waitFor(() => expect(fetchTasks).toHaveBeenCalled())
       expect(await screen.findByText(/boom/)).toBeInTheDocument()
+    })
+
+    describe('reordering within a column', () => {
+      const threeInOne = [
+        { id: 1, title: 'A', priority: '高', dueDate: null, status: '未着手', sortOrder: 1 },
+        { id: 2, title: 'B', priority: '高', dueDate: null, status: '未着手', sortOrder: 2 },
+        { id: 3, title: 'C', priority: '高', dueDate: null, status: '未着手', sortOrder: 3 },
+      ]
+
+      const titlesInColumn = (columnTitle) =>
+        within(screen.getByRole('heading', { name: columnTitle }).parentElement)
+          .getAllByText(/^[ABC]$/)
+          .map((el) => el.textContent)
+
+      it('inserts the dragged card before the card it is dropped on', async () => {
+        fetchTasks.mockResolvedValue(threeInOne)
+        moveTask.mockResolvedValue({})
+        render(<Board />)
+        await screen.findByText('A')
+
+        dragTo('C', '未着手', 'A')
+
+        expect(moveTask).toHaveBeenCalledWith(3, { status: '未着手', position: 0 })
+        expect(titlesInColumn('未着手')).toEqual(['C', 'A', 'B'])
+      })
+
+      it('moves the card to the end when dropped on the column background', async () => {
+        fetchTasks.mockResolvedValue(threeInOne)
+        moveTask.mockResolvedValue({})
+        render(<Board />)
+        await screen.findByText('A')
+
+        dragTo('A', '未着手')
+
+        expect(moveTask).toHaveBeenCalledWith(1, { status: '未着手', position: undefined })
+        expect(titlesInColumn('未着手')).toEqual(['B', 'C', 'A'])
+      })
+
+      it('inserts at the dropped position when moving to another column', async () => {
+        fetchTasks.mockResolvedValue([
+          ...threeInOne,
+          { id: 4, title: 'X', priority: '高', dueDate: null, status: '作業中', sortOrder: 1 },
+        ])
+        moveTask.mockResolvedValue({})
+        render(<Board />)
+        await screen.findByText('A')
+
+        dragTo('A', '作業中', 'X')
+
+        expect(moveTask).toHaveBeenCalledWith(1, { status: '作業中', position: 0 })
+      })
     })
   })
 })

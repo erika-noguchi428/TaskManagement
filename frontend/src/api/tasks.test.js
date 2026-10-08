@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { apiClient } from './client'
-import { createTask, fetchTasks, updateTask } from './tasks'
+import { createTask, fetchTasks, moveTask, updateTask } from './tasks'
 
 vi.mock('./client', () => ({
   apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn() },
@@ -79,5 +79,23 @@ describe('updateTask', () => {
       status: '作業中',
     })
     expect(result).toEqual({ id: 3 })
+  })
+})
+
+describe('moveTask', () => {
+  it('puts only status and position to the move URL', async () => {
+    apiClient.put.mockResolvedValue({ data: { id: 3 } })
+
+    await moveTask(3, { status: '作業中', position: 0 })
+
+    expect(apiClient.put).toHaveBeenCalledWith('/api/tasks/3/move', { status: '作業中', position: 0 })
+  })
+
+  it('omits position when not given', async () => {
+    apiClient.put.mockResolvedValue({ data: { id: 3 } })
+
+    await moveTask(3, { status: '完了' })
+
+    expect(apiClient.put).toHaveBeenCalledWith('/api/tasks/3/move', { status: '完了' })
   })
 })

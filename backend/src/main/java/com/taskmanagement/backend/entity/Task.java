@@ -77,6 +77,11 @@ public class Task {
         this.updatedAt = LocalDateTime.now();
     }
 
+    /** 並び順のみを変更する(タスクの内容は変わらないため更新日時は変えない)。 */
+    public void reorder(int sortOrder) {
+        this.sortOrder = sortOrder;
+    }
+
     public Long getId() {
         return id;
     }

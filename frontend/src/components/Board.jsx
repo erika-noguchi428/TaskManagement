@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { fetchTasks, updateTask } from '../api/tasks'
+import { fetchTasks, moveTask } from '../api/tasks'
+import { moveTaskLocally } from '../utils/moveTask'
 import { groupByStatus, orderForColumn, STATUSES } from '../utils/groupByStatus'
 import { Column } from './Column'
 import { TaskFormModal } from './TaskFormModal'
@@ -58,17 +59,15 @@ export function Board() {
     }
   }, [debouncedKeyword, status, priority, sort, reloadKey])
 
-  // ドロップ先の列のステータスへ変更する。先に画面を更新し、失敗したら再取得して元に戻す。
-  const handleTaskDrop = async (taskId, newStatus) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (!task || task.status === newStatus) return
+  // ドロップ先の列・位置へタスクを移動する。先に画面を更新し、失敗したら再取得して元に戻す。
+  const handleTaskDrop = async (taskId, newStatus, position) => {
+    const moved = moveTaskLocally(tasks, taskId, newStatus, position)
+    if (!moved) return
 
-    setTasks((current) =>
-      current.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)),
-    )
+    setTasks(moved)
     setMoveError(null)
     try {
-      await updateTask(taskId, { ...task, status: newStatus })
+      await moveTask(taskId, { status: newStatus, position })
     } catch (err) {
       setMoveError(err.response?.data?.message ?? err.message)
       setReloadKey((key) => key + 1)
@@ -109,6 +108,7 @@ export function Board() {
               tasks={orderForColumn(grouped[statusLabel], sort)}
               onTaskClick={setEditingTask}
               onTaskDrop={handleTaskDrop}
+              reorderable={!sort}
               onAddClick={statusLabel === '未着手' ? () => setShowForm(true) : undefined}
             />
           ))}

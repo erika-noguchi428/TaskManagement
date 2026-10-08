@@ -1,6 +1,7 @@
 package com.taskmanagement.backend.service;
 
 import com.taskmanagement.backend.dto.TaskCreateRequest;
+import com.taskmanagement.backend.dto.TaskMoveRequest;
 import com.taskmanagement.backend.dto.TaskResponse;
 import com.taskmanagement.backend.dto.TaskUpdateRequest;
 import com.taskmanagement.backend.entity.Priority;
@@ -15,7 +16,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class TaskService {
@@ -91,6 +94,38 @@ public class TaskService {
             task.moveTo(newStatus, taskRepository.findMaxSortOrderByStatus(newStatus) + 1);
         }
         return TaskResponse.from(taskRepository.save(task));
+    }
+
+    @Transactional
+    public TaskResponse move(Long id, TaskMoveRequest request) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new TaskNotFoundException(id));
+        Status targetStatus = request == null ? null : parseStatus(request.status());
+        if (targetStatus == null) {
+            targetStatus = task.getStatus();
+        }
+        Integer requested = request == null ? null : request.position();
+        if (requested != null && requested < 0) {
+            throw new InvalidRequestException("position must be 0 or greater");
+        }
+
+        // 移動先の列から自分自身を除いた並びに挿入し、1からの連番に振り直す。
+        List<Task> column = new ArrayList<>(taskRepository.findByStatusOrderBySortOrderAscIdAsc(targetStatus));
+        column.removeIf(t -> t == task || Objects.equals(t.getId(), id));
+        int position = requested == null ? column.size() : Math.min(requested, column.size());
+        column.add(position, task);
+
+        for (int i = 0; i < column.size(); i++) {
+            Task t = column.get(i);
+            int order = i + 1;
+            if (t == task && t.getStatus() != targetStatus) {
+                t.moveTo(targetStatus, order);
+            } else if (!t.getSortOrder().equals(order)) {
+                t.reorder(order);
+            }
+        }
+        taskRepository.saveAll(column);
+        return TaskResponse.from(task);
     }
 
     private String validateTitle(String raw) {

@@ -32,3 +32,12 @@ export async function updateTask(id, { title, description, priority, dueDate, st
   const response = await apiClient.put(`/api/tasks/${id}`, body)
   return response.data
 }
+
+// タスクの内容は変えず、ステータスと列内の位置(0始まり)だけを変更する。
+export async function moveTask(id, { status, position }) {
+  const body = { status }
+  if (position !== undefined) body.position = position
+
+  const response = await apiClient.put(`/api/tasks/${id}/move`, body)
+  return response.data
+}
