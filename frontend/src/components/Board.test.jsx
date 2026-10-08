@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTask, fetchTasks, moveTask } from '../api/tasks'
@@ -68,18 +68,36 @@ describe('Board', () => {
   })
 
   describe('drag and drop', () => {
-    const dragTo = (cardTitle, columnTitle, dropOnCardTitle) => {
+    // dropOn: { title, half } でカードの上半分('top')・下半分('bottom')を指定する。
+    const makeDataTransfer = () => {
       const data = {}
-      const dataTransfer = {
+      return {
         setData: (type, value) => (data[type] = value),
         getData: (type) => data[type],
       }
-      const target = dropOnCardTitle
-        ? screen.getByText(dropOnCardTitle)
-        : screen.getByRole('heading', { name: columnTitle }).parentElement
+    }
+
+    const pointAt = ({ title, half }) => {
+      const card = screen.getByText(title).closest('[data-task-index]')
+      card.getBoundingClientRect = () => ({ top: 0, height: 100 })
+      return { target: card, clientY: half === 'top' ? 25 : 75 }
+    }
+
+    // jsdomのDragEventはclientYを受け取らないため、イベントに直接設定する。
+    const fireDrag = (type, target, dataTransfer, clientY = 0) => {
+      const event = createEvent[type](target, { dataTransfer })
+      Object.defineProperty(event, 'clientY', { value: clientY })
+      fireEvent(target, event)
+    }
+
+    const dragTo = (cardTitle, columnTitle, dropOn) => {
+      const dataTransfer = makeDataTransfer()
+      const { target, clientY } = dropOn
+        ? pointAt(dropOn)
+        : { target: screen.getByRole('heading', { name: columnTitle }).parentElement, clientY: 0 }
       fireEvent.dragStart(screen.getByText(cardTitle), { dataTransfer })
-      fireEvent.dragOver(target, { dataTransfer })
-      fireEvent.drop(target, { dataTransfer })
+      fireDrag('dragOver', target, dataTransfer, clientY)
+      fireDrag('drop', target, dataTransfer, clientY)
     }
 
     beforeEach(() => { moveTask.mockReset() })
@@ -91,7 +109,7 @@ describe('Board', () => {
 
       dragTo('未着手タスク', '作業中')
 
-      expect(moveTask).toHaveBeenCalledWith(1, { status: '作業中', position: undefined })
+      expect(moveTask).toHaveBeenCalledWith(1, { status: '作業中', position: 1 })
       const column = screen.getByRole('heading', { name: '作業中' }).parentElement
       expect(column).toHaveTextContent('未着手タスク')
     })
@@ -135,10 +153,44 @@ describe('Board', () => {
         render(<Board />)
         await screen.findByText('A')
 
-        dragTo('C', '未着手', 'A')
+        dragTo('C', '未着手', { title: 'A', half: 'top' })
 
         expect(moveTask).toHaveBeenCalledWith(3, { status: '未着手', position: 0 })
         expect(titlesInColumn('未着手')).toEqual(['C', 'A', 'B'])
+      })
+
+      it('inserts after the card when dropped on its lower half', async () => {
+        fetchTasks.mockResolvedValue(threeInOne)
+        moveTask.mockResolvedValue({})
+        render(<Board />)
+        await screen.findByText('A')
+
+        dragTo('C', '未着手', { title: 'A', half: 'bottom' })
+
+        expect(moveTask).toHaveBeenCalledWith(3, { status: '未着手', position: 1 })
+        expect(titlesInColumn('未着手')).toEqual(['A', 'C', 'B'])
+      })
+
+      it('shows a line at the insert position while dragging and hides it on leave', async () => {
+        fetchTasks.mockResolvedValue(threeInOne)
+        render(<Board />)
+        await screen.findByText('A')
+        const dataTransfer = makeDataTransfer()
+        fireEvent.dragStart(screen.getByText('C'), { dataTransfer })
+
+        const top = pointAt({ title: 'B', half: 'top' })
+        fireDrag('dragOver', top.target, dataTransfer, top.clientY)
+        const line = screen.getByTestId('drop-indicator')
+        expect(line.parentElement).toHaveTextContent('B')
+        expect(line.className).toContain('-top-1.5')
+
+        const last = pointAt({ title: 'C', half: 'bottom' })
+        fireDrag('dragOver', last.target, dataTransfer, last.clientY)
+        expect(screen.getAllByTestId('drop-indicator')).toHaveLength(1)
+        expect(screen.getByTestId('drop-indicator').className).toContain('-bottom-1.5')
+
+        fireEvent.dragLeave(last.target, { dataTransfer })
+        expect(screen.queryByTestId('drop-indicator')).not.toBeInTheDocument()
       })
 
       it('moves the card to the end when dropped on the column background', async () => {
@@ -149,7 +201,7 @@ describe('Board', () => {
 
         dragTo('A', '未着手')
 
-        expect(moveTask).toHaveBeenCalledWith(1, { status: '未着手', position: undefined })
+        expect(moveTask).toHaveBeenCalledWith(1, { status: '未着手', position: 2 })
         expect(titlesInColumn('未着手')).toEqual(['B', 'C', 'A'])
       })
 
@@ -162,7 +214,7 @@ describe('Board', () => {
         render(<Board />)
         await screen.findByText('A')
 
-        dragTo('A', '作業中', 'X')
+        dragTo('A', '作業中', { title: 'X', half: 'top' })
 
         expect(moveTask).toHaveBeenCalledWith(1, { status: '作業中', position: 0 })
       })
