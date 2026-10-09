@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { createTask, updateTask } from '../api/tasks'
+import { createTask, deleteTask, updateTask } from '../api/tasks'
 import { STATUSES } from '../utils/groupByStatus'
 import { PRIORITY_OPTIONS } from '../utils/priority'
 
 const DEFAULT_PRIORITY = '中'
 
 // taskを渡すと詳細表示で開き、「編集」を押すと編集モードになる。編集中は閉じるときに変更があれば保存する。
-export function TaskFormModal({ task, onClose, onCreated, onUpdated }) {
+export function TaskFormModal({ task, onClose, onCreated, onUpdated, onDeleted }) {
   const isEdit = Boolean(task)
   const [title, setTitle] = useState(task?.title ?? '')
   const [description, setDescription] = useState(task?.description ?? '')
@@ -17,6 +17,8 @@ export function TaskFormModal({ task, onClose, onCreated, onUpdated }) {
   const [titleError, setTitleError] = useState(null)
   const [submitError, setSubmitError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
 
   async function handleCloseWithSave() {
     if (submitting) return
@@ -46,10 +48,28 @@ export function TaskFormModal({ task, onClose, onCreated, onUpdated }) {
     }
   }
 
+  async function handleConfirmDelete() {
+    setDeleteError(null)
+    setSubmitting(true)
+    try {
+      await deleteTask(task.id)
+      onDeleted()
+    } catch (err) {
+      setDeleteError(err.response?.data?.message ?? err.message)
+      setSubmitting(false)
+      setConfirmingDelete(false)
+    }
+  }
+
   useEffect(() => {
     if (!isEdit) return undefined
     function handleKeyDown(e) {
-      if (e.key === 'Escape') (editing ? handleCloseWithSave : onClose)()
+      if (e.key !== 'Escape') return
+      if (confirmingDelete) {
+        if (!submitting) setConfirmingDelete(false)
+        return
+      }
+      (editing ? handleCloseWithSave : onClose)()
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
@@ -223,16 +243,32 @@ export function TaskFormModal({ task, onClose, onCreated, onUpdated }) {
           </div>
         )}
 
+        {deleteError && (
+          <div className="bg-red-50 text-red-700 border border-red-200 rounded p-2 text-sm">
+            削除に失敗しました: {deleteError}
+          </div>
+        )}
+
         <div className="flex justify-end gap-2">
           {isEdit ? (
-            <button
-              type="button"
-              onClick={handleCloseWithSave}
-              disabled={submitting}
-              className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              閉じる
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                disabled={submitting}
+                className="mr-auto px-3 py-1.5 text-sm rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
+              >
+                削除
+              </button>
+              <button
+                type="button"
+                onClick={handleCloseWithSave}
+                disabled={submitting}
+                className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                閉じる
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -253,6 +289,39 @@ export function TaskFormModal({ task, onClose, onCreated, onUpdated }) {
           )}
         </div>
       </form>
+
+      {confirmingDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-20">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-confirm-message"
+            className="bg-white rounded-lg shadow-lg w-full max-w-sm p-5 space-y-4"
+          >
+            <p id="delete-confirm-message" className="text-sm text-gray-900">
+              本当に削除してよろしいですか（この操作はもとに戻せません。）。
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={submitting}
+                className="px-3 py-1.5 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                いいえ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={submitting}
+                className="px-3 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                はい
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

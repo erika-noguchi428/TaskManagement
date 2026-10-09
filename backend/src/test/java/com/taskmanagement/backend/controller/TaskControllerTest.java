@@ -21,7 +21,10 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -178,6 +181,31 @@ class TaskControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"position\":0}"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteTaskReturns204() throws Exception {
+        mockMvc.perform(delete("/api/tasks/1"))
+                .andExpect(status().isNoContent());
+
+        verify(taskService).delete(1L);
+    }
+
+    @Test
+    void deleteTaskReturns404ForUnknownId() throws Exception {
+        doThrow(new TaskNotFoundException(99L)).when(taskService).delete(99L);
+
+        mockMvc.perform(delete("/api/tasks/99"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void corsPreflightAllowsDeleteFromFrontendOrigin() throws Exception {
+        mockMvc.perform(options("/api/tasks/1")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "DELETE"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
     }
 
     @Test

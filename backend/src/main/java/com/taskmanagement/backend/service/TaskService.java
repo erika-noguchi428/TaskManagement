@@ -96,6 +96,14 @@ public class TaskService {
         return TaskResponse.from(taskRepository.save(task));
     }
 
+    // 物理削除。列内の並び順は相対順序のみが意味を持つため、欠番が出ても振り直さない。
+    @Transactional
+    public void delete(Long id) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new TaskNotFoundException(id));
+        taskRepository.delete(task);
+    }
+
     @Transactional
     public TaskResponse move(Long id, TaskMoveRequest request) {
         Task task = taskRepository.findById(id)

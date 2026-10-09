@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { apiClient } from './client'
-import { createTask, fetchTasks, moveTask, updateTask } from './tasks'
+import { createTask, deleteTask, fetchTasks, moveTask, updateTask } from './tasks'
 
 vi.mock('./client', () => ({
-  apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn() },
+  apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }))
 
 describe('fetchTasks', () => {
@@ -97,5 +97,15 @@ describe('moveTask', () => {
     await moveTask(3, { status: '完了' })
 
     expect(apiClient.put).toHaveBeenCalledWith('/api/tasks/3/move', { status: '完了' })
+  })
+})
+
+describe('deleteTask', () => {
+  it('sends DELETE to the task URL', async () => {
+    apiClient.delete.mockResolvedValue({ status: 204 })
+
+    await deleteTask(3)
+
+    expect(apiClient.delete).toHaveBeenCalledWith('/api/tasks/3')
   })
 })

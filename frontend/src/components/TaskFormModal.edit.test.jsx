@@ -1,12 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { updateTask } from '../api/tasks'
+import { deleteTask, updateTask } from '../api/tasks'
 import { TaskFormModal } from './TaskFormModal'
 
 vi.mock('../api/tasks', () => ({
   createTask: vi.fn(),
   updateTask: vi.fn(),
+  deleteTask: vi.fn(),
 }))
 
 const task = {
@@ -119,5 +120,81 @@ describe('TaskFormModal (edit mode)', () => {
 
     expect(await screen.findByText(/更新に失敗しました: boom/)).toBeInTheDocument()
     expect(onUpdated).not.toHaveBeenCalled()
+  })
+})
+
+describe('TaskFormModal (delete)', () => {
+  beforeEach(() => {
+    updateTask.mockReset()
+    deleteTask.mockReset()
+  })
+
+  it('shows 削除 only after entering edit mode', async () => {
+    render(<TaskFormModal task={task} onClose={vi.fn()} onUpdated={vi.fn()} onDeleted={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: '削除' })).not.toBeInTheDocument()
+
+    await userEvent.setup().click(screen.getByRole('button', { name: '編集' }))
+
+    expect(screen.getByRole('button', { name: '削除' })).toBeInTheDocument()
+  })
+
+  it('asks for confirmation before deleting', async () => {
+    const user = await renderEditing({ onDeleted: vi.fn() })
+
+    await user.click(screen.getByRole('button', { name: '削除' }))
+
+    expect(
+      screen.getByText('本当に削除してよろしいですか（この操作はもとに戻せません。）。'),
+    ).toBeInTheDocument()
+    expect(deleteTask).not.toHaveBeenCalled()
+  })
+
+  it('deletes the task when はい is clicked', async () => {
+    deleteTask.mockResolvedValue()
+    const onDeleted = vi.fn()
+    const user = await renderEditing({ onDeleted })
+
+    await user.click(screen.getByRole('button', { name: '削除' }))
+    await user.click(screen.getByRole('button', { name: 'はい' }))
+
+    expect(deleteTask).toHaveBeenCalledWith(5)
+    expect(onDeleted).toHaveBeenCalled()
+  })
+
+  it('returns to the edit form without deleting when いいえ is clicked', async () => {
+    const onDeleted = vi.fn()
+    const user = await renderEditing({ onDeleted })
+
+    await user.click(screen.getByRole('button', { name: '削除' }))
+    await user.click(screen.getByRole('button', { name: 'いいえ' }))
+
+    expect(deleteTask).not.toHaveBeenCalled()
+    expect(onDeleted).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/タイトル/)).toHaveValue('既存タスク')
+  })
+
+  it('cancels the confirmation on Escape without saving or closing', async () => {
+    const onClose = vi.fn()
+    const user = await renderEditing({ onClose, onDeleted: vi.fn() })
+
+    await user.click(screen.getByRole('button', { name: '削除' }))
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(deleteTask).not.toHaveBeenCalled()
+  })
+
+  it('shows an error and keeps the modal open when deleting fails', async () => {
+    deleteTask.mockRejectedValue({ response: { data: { message: 'boom' } } })
+    const onDeleted = vi.fn()
+    const user = await renderEditing({ onDeleted })
+
+    await user.click(screen.getByRole('button', { name: '削除' }))
+    await user.click(screen.getByRole('button', { name: 'はい' }))
+
+    expect(await screen.findByText(/削除に失敗しました: boom/)).toBeInTheDocument()
+    expect(onDeleted).not.toHaveBeenCalled()
   })
 })
