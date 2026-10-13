@@ -1,7 +1,7 @@
 import { createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createTask, fetchTasks, moveTask } from '../api/tasks'
+import { createTask, deleteTask, fetchTasks, moveTask } from '../api/tasks'
 import { Board } from './Board'
 
 vi.mock('../api/tasks', () => ({
@@ -9,6 +9,7 @@ vi.mock('../api/tasks', () => ({
   createTask: vi.fn(),
   moveTask: vi.fn(),
   updateTask: vi.fn(),
+  deleteTask: vi.fn(),
 }))
 
 const tasks = [
@@ -219,5 +220,55 @@ describe('Board', () => {
         expect(moveTask).toHaveBeenCalledWith(1, { status: '作業中', position: 0 })
       })
     })
+  })
+})
+
+describe('Board (trash icon delete)', () => {
+  beforeEach(() => {
+    fetchTasks.mockReset()
+    fetchTasks.mockResolvedValue(tasks)
+    deleteTask.mockReset()
+  })
+
+  it('deletes the task and reloads after confirming with OK', async () => {
+    deleteTask.mockResolvedValue()
+    const user = userEvent.setup()
+    render(<Board />)
+    await screen.findByText('未着手タスク')
+    fetchTasks.mockClear()
+
+    await user.click(screen.getByRole('button', { name: '未着手タスクを削除' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(deleteTask).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'OK' }))
+
+    await waitFor(() => expect(deleteTask).toHaveBeenCalledWith(1))
+    await waitFor(() => expect(fetchTasks).toHaveBeenCalled())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('does not delete when the confirmation is cancelled', async () => {
+    const user = userEvent.setup()
+    render(<Board />)
+    await screen.findByText('未着手タスク')
+
+    await user.click(screen.getByRole('button', { name: '未着手タスクを削除' }))
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
+
+    expect(deleteTask).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('shows an error when deleting fails', async () => {
+    deleteTask.mockRejectedValue({ response: { data: { message: 'boom' } } })
+    const user = userEvent.setup()
+    render(<Board />)
+    await screen.findByText('未着手タスク')
+
+    await user.click(screen.getByRole('button', { name: '未着手タスクを削除' }))
+    await user.click(screen.getByRole('button', { name: 'OK' }))
+
+    expect(await screen.findByText(/削除に失敗しました: boom/)).toBeInTheDocument()
   })
 })

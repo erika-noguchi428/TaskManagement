@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { TaskCard } from './TaskCard'
 
 const baseTask = {
@@ -32,5 +33,31 @@ describe('TaskCard', () => {
 
     const dueDateEl = screen.getByText(/期限:/)
     expect(dueDateEl).toHaveClass('text-red-700')
+  })
+})
+
+describe('TaskCard trash button', () => {
+  it('is not rendered without onDelete', () => {
+    render(<TaskCard task={baseTask} />)
+
+    expect(screen.queryByRole('button', { name: /削除/ })).not.toBeInTheDocument()
+  })
+
+  it('calls onDelete without triggering the card click', async () => {
+    const onClick = vi.fn()
+    const onDelete = vi.fn()
+    render(<TaskCard task={baseTask} onClick={onClick} onDelete={onDelete} />)
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'テストタスクを削除' }))
+
+    expect(onDelete).toHaveBeenCalledTimes(1)
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it('is revealed on hover and focus via CSS classes', () => {
+    render(<TaskCard task={baseTask} onDelete={vi.fn()} />)
+
+    const button = screen.getByRole('button', { name: 'テストタスクを削除' })
+    expect(button).toHaveClass('opacity-0', 'group-hover:opacity-100', 'focus:opacity-100')
   })
 })

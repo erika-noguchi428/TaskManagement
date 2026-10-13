@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { fetchTasks, moveTask } from '../api/tasks'
+import { deleteTask, fetchTasks, moveTask } from '../api/tasks'
 import { moveTaskLocally } from '../utils/moveTask'
 import { groupByStatus, orderForColumn, STATUSES } from '../utils/groupByStatus'
 import { Column } from './Column'
+import { DeleteConfirmDialog } from './DeleteConfirmDialog'
 import { TaskFormModal } from './TaskFormModal'
 import { FilterBar } from './FilterBar'
 
@@ -31,6 +32,9 @@ export function Board() {
   const [moveError, setMoveError] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
+  const [deletingTask, setDeletingTask] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
 
   const debouncedKeyword = useDebouncedValue(keyword, KEYWORD_DEBOUNCE_MS)
@@ -74,6 +78,21 @@ export function Board() {
     }
   }
 
+  // ゴミ箱アイコンからの削除。確認ダイアログでOKされたときだけ物理削除する。
+  const handleConfirmDelete = async () => {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteTask(deletingTask.id)
+      setReloadKey((key) => key + 1)
+    } catch (err) {
+      setDeleteError(err.response?.data?.message ?? err.message)
+    } finally {
+      setDeleting(false)
+      setDeletingTask(null)
+    }
+  }
+
   const grouped = groupByStatus(tasks)
 
   return (
@@ -97,6 +116,12 @@ export function Board() {
         </div>
       )}
 
+      {deleteError && (
+        <div className="bg-red-50 text-red-700 border border-red-200 rounded p-3 mb-4">
+          削除に失敗しました: {deleteError}
+        </div>
+      )}
+
       {loading ? (
         <p className="text-gray-500">読み込み中...</p>
       ) : (
@@ -107,6 +132,7 @@ export function Board() {
               title={statusLabel}
               tasks={orderForColumn(grouped[statusLabel], sort)}
               onTaskClick={setEditingTask}
+              onTaskDelete={setDeletingTask}
               onTaskDrop={handleTaskDrop}
               reorderable={!sort}
               onAddClick={statusLabel === '未着手' ? () => setShowForm(true) : undefined}
@@ -122,6 +148,14 @@ export function Board() {
             setShowForm(false)
             setReloadKey((key) => key + 1)
           }}
+        />
+      )}
+
+      {deletingTask && (
+        <DeleteConfirmDialog
+          busy={deleting}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeletingTask(null)}
         />
       )}
 
