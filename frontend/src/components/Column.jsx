@@ -12,7 +12,15 @@ function getInsertIndex(e, count) {
   return e.clientY < rect.top + rect.height / 2 ? index : index + 1
 }
 
-export function Column({ title, tasks, onAddClick, onTaskClick, onTaskDrop, reorderable = true }) {
+export function Column({
+  title,
+  tasks,
+  onAddClick,
+  onTaskClick,
+  onTaskDelete,
+  onTaskDrop,
+  reorderable = true,
+}) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [insertIndex, setInsertIndex] = useState(null)
   // 並び替えはこの列だけに適用する。選択中のボタンを再度押すと解除して元の並びに戻る。
@@ -93,6 +101,7 @@ export function Column({ title, tasks, onAddClick, onTaskClick, onTaskDrop, reor
               <TaskCard
                 task={task}
                 onClick={onTaskClick ? () => onTaskClick(task) : undefined}
+                onDelete={onTaskDelete ? () => onTaskDelete(task) : undefined}
               />
               {insertIndex === displayedTasks.length && index === displayedTasks.length - 1 && (
                 <DropIndicator position="bottom" />
