@@ -78,6 +78,7 @@ export function TaskFormModal({ task, onClose, onCreated, onUpdated, onDeleted }
   if (isEdit && !editing) {
     return (
       <div
+        role="presentation"
         className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-10"
         onMouseDown={(e) => e.target === e.currentTarget && onClose()}
       >
@@ -142,6 +143,7 @@ export function TaskFormModal({ task, onClose, onCreated, onUpdated, onDeleted }
 
   return (
     <div
+      role="presentation"
       className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-10"
       onMouseDown={isEdit ? (e) => e.target === e.currentTarget && handleCloseWithSave() : undefined}
     >

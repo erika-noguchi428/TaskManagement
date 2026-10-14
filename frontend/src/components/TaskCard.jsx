@@ -5,13 +5,15 @@ export const TASK_DRAG_TYPE = 'text/plain'
 
 export function TaskCard({ task, onClick, onDelete }) {
   return (
+    // role は onClick の有無で切り替えている(静的解析では条件付き role を判定できない)。
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData(TASK_DRAG_TYPE, String(task.id))
         e.dataTransfer.effectAllowed = 'move'
       }}
-      role={onClick ? 'button' : undefined}
+      role={onClick ? 'button' : 'group'}
       tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
       onKeyDown={
