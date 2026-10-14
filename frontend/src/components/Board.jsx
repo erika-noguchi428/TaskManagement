@@ -42,7 +42,6 @@ export function Board() {
   useEffect(() => {
     let isCurrent = true
 
-    setLoading(true)
     fetchTasks({ keyword: debouncedKeyword, status, priority, sort })
       .then((data) => {
         if (!isCurrent) return

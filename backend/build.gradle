@@ -2,6 +2,8 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'checkstyle'
+	id 'com.github.spotbugs' version '6.5.13'
 }
 
 group = 'com.taskmanagement'
@@ -35,4 +37,29 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+checkstyle {
+	toolVersion = '14.3.0'
+	configFile = file('config/checkstyle/checkstyle.xml')
+	// 警告も含めて違反があればビルドを失敗させる。
+	maxWarnings = 0
+}
+
+spotbugs {
+	toolVersion = '4.10.5'
+	effort = 'max'
+	reportLevel = 'medium'
+	excludeFilter = file('config/spotbugs/exclude.xml')
+}
+
+// テストコードは対象外(本番コードのみ検査する)。
+tasks.named('checkstyleTest') { enabled = false }
+tasks.named('spotbugsTest') { enabled = false }
+
+// HTMLレポートを出力する(SpotBugsはXMLとの同時出力不可)。
+tasks.named('spotbugsMain') {
+	reports {
+		html.required = true
+	}
 }
