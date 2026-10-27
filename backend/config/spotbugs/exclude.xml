@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 誤検知として除外するSpotBugsの検出。追加する場合は理由をコメントで残すこと。 -->
+<FindBugsFilter>
+  <!-- JPAエンティティ・DTO(record)は、フレームワークが内部表現を直接扱う前提のため -->
+  <Match>
+    <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+  </Match>
+</FindBugsFilter>

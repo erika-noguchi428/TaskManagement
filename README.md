@@ -6,13 +6,12 @@ Trello風のシンプルなタスク管理アプリ。タスクを「未着手�
 
 - タスク(カード)の作成・編集・削除(タイトル・説明文・優先度・期限)
 - ドラッグ&ドロップによる列間移動・同一列内の並び替え
-- 列ごとの優先度順・期限順への一括並び替え
+- 列ごとの重要度順・期日順の表示切り替え(表示のみ。保存はしない)
+- キーワード検索・ステータス/優先度での絞り込み・全体の並び替え
 - 優先度の色分け、期限切れ・期限間近の強調表示
 - PostgreSQLへの永続化(ブラウザを閉じてもデータが残る)
 
 列(未着手/作業中/完了)は3つ固定で、ログイン・複数ユーザー・担当者・通知機能は対象外。
-
-> **実装状況**: 現時点で実装済みなのは、タスクの検索・並び替えAPI(`GET /api/tasks`、`GET /api/tasks/{id}`)と、その結果を表示するボード画面。作成・編集・削除・ドラッグ&ドロップは今後実装する。
 
 ## 技術スタック
 
@@ -93,14 +92,22 @@ npm run dev
 
 | メソッド | パス | 内容 |
 |---|---|---|
-| GET | `/api/tasks` | タスク一覧。クエリ: `status` / `priority` / `keyword` / `sort`(いずれも任意) |
-| GET | `/api/tasks/{id}` | タスク1件の取得 |
+| GET | `/api/tasks` | タスク一覧(200)。クエリ: `status` / `priority` / `keyword` / `sort`(いずれも任意。`sort` は `priority,asc` / `priority,desc` / `dueDate,asc` / `dueDate,desc`)。`sort` 省略時はID昇順 |
+| GET | `/api/tasks/{id}` | タスク1件の取得(200) |
+| POST | `/api/tasks` | タスク作成(201 + `Location`)。ボディ: `title`(必須) / `description` / `priority`(必須) / `dueDate`。「未着手」列の末尾に追加される |
+| PUT | `/api/tasks/{id}` | タスク更新(200)。ボディ: `title`(必須) / `description` / `priority`(必須) / `dueDate` / `status`(省略時は変更なし。変更時は移動先の列の末尾に配置) |
+| PUT | `/api/tasks/{id}/move` | 列間移動・同列内並び替え(200)。ボディ: `status`(省略時は現在の列) / `position`(移動先の列での0始まりの挿入位置。省略時は末尾) |
+| DELETE | `/api/tasks/{id}` | 物理削除(204) |
+
+- JSONのフィールド名はcamelCase(`id` / `title` / `description` / `priority` / `dueDate` / `status` / `sortOrder` / `createdAt` / `updatedAt`)。`priority` は `高`/`中`/`低`、`status` は `未着手`/`作業中`/`完了`
+- エラー時は `{"status": <HTTPステータス>, "message": "<メッセージ>"}` を返す。入力不正は400、存在しないIDは404
 
 ## テスト・ビルド
 
 ```bash
 # バックエンド
-cd backend && ./gradlew test
+cd backend && ./gradlew test     # テストのみ
+cd backend && ./gradlew check    # テスト + Checkstyle + SpotBugs
 
 # フロントエンド
 cd frontend && npm test        # Vitest

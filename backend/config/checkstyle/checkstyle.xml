@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!-- 既存コード(タブインデント・日本語コメント)に合わせた最小限のルール。書式ではなく不具合の温床になる点を検査する。 -->
+<module name="Checker">
+  <property name="charset" value="UTF-8"/>
+  <property name="severity" value="warning"/>
+
+  <module name="NewlineAtEndOfFile"/>
+  <module name="FileTabCharacter">
+    <property name="eachLine" value="false"/>
+    <property name="fileExtensions" value="none"/>
+  </module>
+
+  <module name="TreeWalker">
+    <!-- 命名 -->
+    <module name="ConstantName"/>
+    <module name="LocalFinalVariableName"/>
+    <module name="LocalVariableName"/>
+    <module name="MemberName"/>
+    <module name="MethodName"/>
+    <module name="PackageName"/>
+    <module name="ParameterName"/>
+    <module name="StaticVariableName"/>
+    <module name="TypeName"/>
+
+    <!-- import -->
+    <module name="AvoidStarImport"/>
+    <module name="RedundantImport"/>
+    <module name="UnusedImports"/>
+
+    <!-- 構造・ブロック -->
+    <module name="EmptyBlock"/>
+    <module name="NeedBraces"/>
+    <module name="LeftCurly"/>
+    <module name="RightCurly"/>
+    <module name="OneStatementPerLine"/>
+    <module name="ModifierOrder"/>
+    <module name="RedundantModifier"/>
+    <module name="UpperEll"/>
+    <module name="ArrayTypeStyle"/>
+
+    <!-- 不具合の温床 -->
+    <module name="EmptyStatement"/>
+    <module name="EqualsHashCode"/>
+    <module name="MissingSwitchDefault"/>
+    <module name="SimplifyBooleanExpression"/>
+    <module name="SimplifyBooleanReturn"/>
+    <module name="StringLiteralEquality"/>
+    <module name="InnerAssignment"/>
+    <module name="FallThrough"/>
+    <module name="MultipleVariableDeclarations"/>
+  </module>
+</module>
